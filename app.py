@@ -1,59 +1,24 @@
 import streamlit as st
 import numpy as np
-from datetime import datetime
-import pytz
+import plotly.graph_objects as go
 
-# ---------------- CONFIG ----------------
-st.set_page_config(page_title="Weather App", layout="wide")
-
-ist = pytz.timezone("Asia/Kolkata")
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(page_title="Smart Weather App", layout="wide")
 
 # ---------------- STYLE ----------------
 st.markdown("""
 <style>
-.stApp {
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-}
-.title {
+[data-testid="stMetric"] {
+    background: #1f2937;
+    padding: 15px;
+    border-radius: 12px;
     text-align: center;
-    font-size: 40px;
-    color: white;
-}
-.datetime {
-    text-align: center;
-    color: white;
-    margin-bottom: 20px;
-}
-.card {
-    background: rgba(255,255,255,0.1);
-    padding: 20px;
-    border-radius: 15px;
-}
-div.stButton {
-    display: flex;
-    justify-content: center;
-}
-.footer {
-    text-align: center;
-    color: white;
-    margin-top: 40px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- TITLE ----------------
-st.markdown('<div class="title">🌦️ Smart Weather Prediction System</div>', unsafe_allow_html=True)
-
-# ---------------- TIME ----------------
-now = datetime.now(ist)
-st.markdown(
-    f'<div class="datetime">📅 {now.strftime("%d-%m-%Y")} | ⏰ {now.strftime("%H:%M:%S")}</div>',
-    unsafe_allow_html=True
-)
-
-# ---------------- LOCATIONS ----------------
-raw_locations = """
-adilabad agar agra ahmadnagar aizawl ajmer akola alappuzha aligarh alirajpur
+# ---------------- LOCATION LIST ----------------
+locations = """adilabad agar agra ahmadnagar aizawl ajmer akola alappuzha aligarh alirajpur
 allahabad almora alwar ambala amethi amravati amreli amritsar anand anantapur
 anantnag anugul anuppur araria ariyalur arwal ashoknagar auraiya aurangabad
 azamgarh badgam bagalkot bageshwar baghpat bahraich balaghat balangir baleshwar
@@ -86,96 +51,92 @@ sangli sangrur satara satna sehore seoni shimla shimoga sikar siwan solan
 solapur sonipat srinagar sultanpur surat surendranagar thanjavur
 thiruvananthapuram thrissur tiruchirappalli tirunelveli tiruppur
 tiruvannamalai tonk tumkur udaipur udupi ujjain unnao vadodara varanasi
-vellore visakhapatnam warangal yamunanagar yavatmal zunheboto kanyakumari
-"""
+vellore visakhapatnam warangal yamunanagar yavatmal zunheboto kanyakumari""".split()
 
-locations = sorted(set(raw_locations.split()))
-
-# ---------------- INPUT ----------------
-st.markdown('<div class="card">', unsafe_allow_html=True)
+# ---------------- UI ----------------
+st.title("🌆 Smart Weather Prediction")
 
 col1, col2 = st.columns(2)
 
-with col1:
-    location = st.selectbox("📍 Location", locations)
+location = col1.selectbox("📍 Select Location", sorted(locations))
 
-with col2:
-    time = st.selectbox("⏰ Time (24hr)", [f"{i:02d}:00" for i in range(24)])
-    hour = int(time.split(":")[0])
+time_options = [f"{i:02d}:00" for i in range(24)]
+selected_time = col2.selectbox("⏰ Select Time (24-hour)", time_options)
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ---------------- LOCATION OFFSET ----------------
-def get_temp_offset(location):
-    if location in ["chennai", "madurai", "hyderabad"]:
-        return 3
-    elif location in ["shimla", "srinagar"]:
-        return -5
-    elif location in ["mumbai", "goa", "visakhapatnam"]:
-        return 2
-    else:
-        return 0
-
-# ---------------- WEATHER LOGIC ----------------
-def predict_weather(location, hour):
-
-    base = 30 + get_temp_offset(location)
-
-    # Temperature logic
-    if 12 <= hour <= 16:
-        temp = base + 4
-    elif 0 <= hour <= 5:
-        temp = base - 5
-    elif 6 <= hour <= 10:
-        temp = base - 2
-    else:
-        temp = base
-
-    # ✅ FIXED RAIN LOGIC (more balanced)
-    if temp > 35:
-        rain = np.random.randint(5, 30)
-    elif 28 <= temp <= 35:
-        rain = np.random.randint(20, 60)
-    else:
-        rain = np.random.randint(30, 80)
-
-    clear = 100 - rain
-
-    return temp, rain, clear
+hour = int(selected_time.split(":")[0])
 
 # ---------------- BUTTON ----------------
 if st.button("🔮 Predict Weather"):
 
-    now = datetime.now(ist)
+    # -------- DAY / NIGHT LOGIC --------
+    if 6 <= hour <= 17:
+        phase = "Day 🌞"
+        base_temp = np.random.uniform(28, 35)
 
-    temp, rain, clear = predict_weather(location, hour)
-
-    st.markdown("## 📊 Prediction Results")
-    st.write(f"📅 Date: {now.strftime('%d-%m-%Y')}")
-    st.write(f"⏰ Time: {now.strftime('%H:%M:%S')}")
-
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("🌡️ Temperature", f"{temp}°C")
-    col2.metric("🌧️ Rain", f"{rain}%")
-    col3.metric("🌤️ Clear", f"{clear}%")
-
-    # ---------------- FINAL DAY/NIGHT LOGIC ----------------
-    if 6 <= hour < 18:
-        if rain >= 60:
-            st.warning(f"🌧️ Rainy weather in {location}")
-        elif rain >= 30:
-            st.info(f"🌦️ Cloudy weather in {location}")
+        if base_temp > 33:
+            weather = np.random.choice(["Sunny ☀️", "Sunny ☀️", "Cloudy ☁️"])
+        elif base_temp > 27:
+            weather = np.random.choice(["Cloudy ☁️", "Sunny ☀️"])
         else:
-            st.success(f"☀️ Sunny weather in {location}")
+            weather = "Rainy 🌧️"
 
     else:
-        if rain >= 60:
-            st.warning(f"🌧️ Rain expected tonight in {location}")
-        elif rain >= 30:
-            st.info(f"🌥️ Cloudy night in {location}")
-        else:
-            st.success(f"🌙 Clear night sky in {location}")
+        phase = "Night 🌙"
+        base_temp = np.random.uniform(22, 28)
 
-# ---------------- FOOTER ----------------
-st.markdown('<div class="footer">BY - SAMYAK PRAVEEN KUMAR</div>', unsafe_allow_html=True)
+        if base_temp > 26:
+            weather = np.random.choice(["Clear 🌙", "Cloudy ☁️"])
+        elif base_temp > 24:
+            weather = np.random.choice(["Cloudy ☁️", "Clear 🌙"])
+        else:
+            weather = np.random.choice(["Rainy 🌧️", "Cloudy ☁️"])
+
+    # -------- VALUES --------
+    temp = round(base_temp, 2)
+    feels_like = round(temp + np.random.uniform(1, 3), 2)
+    wind = round(np.random.uniform(2, 8), 1)
+
+    # ---------------- OUTPUT ----------------
+    st.success(f"Prediction for {location} at {selected_time}")
+
+    col3, col4, col5 = st.columns(3)
+    col3.metric("🌤 Weather", weather)
+    col4.metric("🌡 Temperature", f"{temp} °C")
+    col5.metric("🔥 Feels Like", f"{feels_like} °C")
+
+    st.metric("🌬 Wind Speed", f"{wind} km/h")
+    st.markdown(f"### 🕓 Mode: {phase}")
+
+    # ---------------- GRAPH ----------------
+    st.markdown("## 📊 Hourly Weather")
+
+    hours = list(range(24))
+    temp_data = np.random.uniform(22, 35, 24)
+    humidity_data = np.random.uniform(60, 90, 24)
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=hours,
+        y=temp_data,
+        mode='lines+markers',
+        name='Temperature',
+        line=dict(width=3)
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=hours,
+        y=humidity_data,
+        mode='lines+markers',
+        name='Humidity',
+        line=dict(width=3)
+    ))
+
+    fig.update_layout(
+        template="plotly_dark",
+        height=400,
+        xaxis_title="Hour (24H)",
+        yaxis_title="Value"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
